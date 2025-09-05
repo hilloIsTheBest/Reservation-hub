@@ -47,9 +47,30 @@ def run_migrations(engine) -> None:
 
             # homes: ensure owner_id column exists
             if "homes" in tables:
-                ok = _ensure_sqlite_column(conn, "homes", "owner_id", "INTEGER")
-                if ok:
-                    print("[DB] homes.owner_id present")
+                # Ensure owner_id exists and, if legacy owner_user_id is NOT NULL, relax it
+                info = list(conn.execute(text("PRAGMA table_info(homes)")))
+                cols = {row[1]: row for row in info}
+                # Add owner_id if missing and backfill from owner_user_id
+                if "owner_id" not in cols:
+                    _ensure_sqlite_column(conn, "homes", "owner_id", "INTEGER")
+                    try:
+                        conn.execute(text("UPDATE homes SET owner_id = owner_user_id WHERE owner_id IS NULL"))
+                    except Exception as e:
+                        print("[WARN] backfill homes.owner_id from owner_user_id failed:", e)
+
+                # If owner_user_id exists and is NOT NULL constrained, rebuild table to relax it
+                legacy = cols.get("owner_user_id")
+                legacy_notnull = bool(legacy and legacy[3])
+                if legacy_notnull:
+                    print("[DB] Rebuilding homes to relax NOT NULL on owner_user_id ...")
+                    try:
+                        conn.execute(text("CREATE TABLE IF NOT EXISTS homes_mig (id INTEGER PRIMARY KEY, name VARCHAR UNIQUE, owner_id INTEGER, owner_user_id INTEGER)"))
+                        conn.execute(text("INSERT INTO homes_mig (id, name, owner_id, owner_user_id) SELECT id, name, COALESCE(owner_id, owner_user_id), owner_user_id FROM homes"))
+                        conn.execute(text("DROP TABLE homes"))
+                        conn.execute(text("ALTER TABLE homes_mig RENAME TO homes"))
+                        print("[DB] homes table rebuilt; NOT NULL on owner_user_id removed")
+                    except Exception as e:
+                        print("[WARN] homes rebuild failed:", e)
 
             # home_reservations: ensure rrule column exists if table already present
             if "home_reservations" in tables:
