@@ -3,6 +3,7 @@ import os
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from authlib.integrations.starlette_client import OAuth
+from urllib.parse import urljoin
 from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .models import User
@@ -10,7 +11,7 @@ from .models import User
 router = APIRouter()
 oauth = OAuth()
 
-OIDC_ISSUER = os.getenv("OIDC_ISSUER", "")
+OIDC_ISSUER = os.getenv("OIDC_ISSUER", "").strip()
 OIDC_CLIENT_ID = os.getenv("OIDC_CLIENT_ID", "")
 OIDC_CLIENT_SECRET = os.getenv("OIDC_CLIENT_SECRET", "")
 OIDC_REDIRECT_PATH = os.getenv("OIDC_REDIRECT_PATH", "/auth/callback")
@@ -20,9 +21,18 @@ OIDC_SCOPES = os.getenv("OIDC_SCOPES", "openid profile email")
 if not all([OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET]):
     print("[WARN] OIDC env vars not fully configured. Login will fail until set.")
 
+def _issuer_metadata_url(issuer: str) -> str:
+    # Ensure trailing slash so urljoin preserves the application segment
+    base = issuer if issuer.endswith('/') else issuer + '/'
+    return urljoin(base, '.well-known/openid-configuration')
+
+SERVER_METADATA_URL = _issuer_metadata_url(OIDC_ISSUER) if OIDC_ISSUER else ''
+if SERVER_METADATA_URL:
+    print(f"[INFO] Using OIDC discovery: {SERVER_METADATA_URL}")
+
 oauth.register(
     name="authentik",
-    server_metadata_url=f"{OIDC_ISSUER.rstrip('/')}/.well-known/openid-configuration",
+    server_metadata_url=SERVER_METADATA_URL,
     client_id=OIDC_CLIENT_ID,
     client_secret=OIDC_CLIENT_SECRET,
     client_kwargs={"scope": OIDC_SCOPES},
