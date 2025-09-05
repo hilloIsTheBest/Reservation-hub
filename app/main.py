@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
+from sqlalchemy import text
 from icalendar import Calendar, Event
 
 from .database import Base, engine, SessionLocal, run_migrations
@@ -234,7 +235,14 @@ async def api_list_homes(request: Request, db: Session = Depends(get_db)):
     user = require_user(await current_user(request, db))
     try:
         owned = db.query(Home).filter_by(owner_id=user.id).all()
-        member_home_ids = [m.home_id for m in db.query(HomeMember).filter_by(user_id=user.id).all()]
+        try:
+            member_home_ids = [m.home_id for m in db.query(HomeMember).filter_by(user_id=user.id).all()]
+        except OperationalError as e:
+            if "home_members.id" in str(e).lower():
+                # Legacy table without id column; fall back to raw query to avoid selecting the missing column
+                member_home_ids = [row[0] for row in db.execute(text("SELECT home_id FROM home_members WHERE user_id = :uid"), {"uid": user.id})]
+            else:
+                raise
         members = db.query(Home).filter(Home.id.in_(member_home_ids)).all() if member_home_ids else []
         homes = {h.id: h for h in owned}
         for h in members:
