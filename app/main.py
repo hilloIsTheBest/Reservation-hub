@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import FastAPI, Request, Depends, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -94,6 +94,11 @@ async def home_new(request: Request, db: Session = Depends(get_db)):
 async def home_og(request: Request, db: Session = Depends(get_db)):
     user = await current_user(request, db)
     return templates.TemplateResponse("index.html", {"request": request, "user": user})
+
+@app.get("/favicon.ico")
+async def favicon_redirect():
+    # Avoid 404s in browsers that request /favicon.ico by redirecting to our static SVG
+    return RedirectResponse(url="/static/favicon.svg")
 
 # --- Resources (admin can add/delete) ---
 @app.get("/api/resources")
