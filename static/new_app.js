@@ -1,4 +1,4 @@
-(() => {
+﻿(() => {
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
   const homesEl = $('#homes');
@@ -99,10 +99,10 @@
     if (j.is_owner) {
       await loadUsers();
       // Normalize member UI rendering
-      userPicker.innerHTML = state.users.map(u=>`<option value="${u.id}">${u.name} — ${u.email}</option>`).join('');
-      memberChips.innerHTML = (j.members || []).map(m=>`<span class="chip" data-id="${m.id}">${m.name} <a href="#" data-act="rm" title="Remove">✕</a></span>`).join('');
-      userPicker.innerHTML = state.users.map(u=>`<option value="${u.id}">${u.name} — ${u.email}</option>`).join('');
-      memberChips.innerHTML = j.members.map(m=>`<span class="chip" data-id="${m.id}">${m.name} <a href="#" data-act="rm">✕</a></span>`).join('');
+      userPicker.innerHTML = state.users.map(u=>`<option value="${u.id}">${u.name} - ${u.email}</option>`).join('');
+      memberChips.innerHTML = (j.members || []).map(m=>`<span class="chip" data-id="${m.id}">${m.name} <a href="#" data-act="rm" title="Remove">âœ•</a></span>`).join('');
+      userPicker.innerHTML = state.users.map(u=>`<option value="${u.id}">${u.name} - ${u.email}</option>`).join('');
+      memberChips.innerHTML = j.members.map(m=>`<span class="chip" data-id="${m.id}">${m.name} <a href="#" data-act="rm">âœ•</a></span>`).join('');
       memberChips.querySelectorAll('a[data-act="rm"]').forEach(a => {
         a.onclick = async (ev) => {
           ev.preventDefault();
