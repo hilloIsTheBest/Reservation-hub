@@ -77,6 +77,28 @@ def run_migrations(engine) -> None:
                 ok = _ensure_sqlite_column(conn, "home_reservations", "rrule", "TEXT DEFAULT ''")
                 if ok:
                     print("[DB] home_reservations.rrule present")
+
+            # home_members: ensure it has an id primary key; rebuild if missing
+            if "home_members" in tables:
+                cols = {row[1] for row in conn.execute(text("PRAGMA table_info(home_members)"))}
+                if "id" not in cols:
+                    print("[DB] Rebuilding home_members to add id primary key ...")
+                    try:
+                        conn.execute(text(
+                            "CREATE TABLE IF NOT EXISTS home_members_mig (\n"
+                            "  id INTEGER PRIMARY KEY,\n"
+                            "  home_id INTEGER,\n"
+                            "  user_id INTEGER,\n"
+                            "  UNIQUE(home_id, user_id)\n"
+                            ")"
+                        ))
+                        # copy without id to auto-assign
+                        conn.execute(text("INSERT INTO home_members_mig (home_id, user_id) SELECT home_id, user_id FROM home_members"))
+                        conn.execute(text("DROP TABLE home_members"))
+                        conn.execute(text("ALTER TABLE home_members_mig RENAME TO home_members"))
+                        print("[DB] home_members rebuilt with id column")
+                    except Exception as e:
+                        print("[WARN] home_members rebuild failed:", e)
     except Exception as e:
         # Do not block startup; log to stdout
         print("[WARN] run_migrations encountered an issue:", e)
