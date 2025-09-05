@@ -100,9 +100,9 @@
       await loadUsers();
       // Normalize member UI rendering
       userPicker.innerHTML = state.users.map(u=>`<option value="${u.id}">${u.name} - ${u.email}</option>`).join('');
-      memberChips.innerHTML = (j.members || []).map(m=>`<span class="chip" data-id="${m.id}">${m.name} <a href="#" data-act="rm" title="Remove">âœ•</a></span>`).join('');
+      memberChips.innerHTML = (j.members || []).map(m=>`<span class="chip" data-id="${m.id}">${m.name} <a href="#" data-act="rm" title="Remove">x</a></span>`).join('');
       userPicker.innerHTML = state.users.map(u=>`<option value="${u.id}">${u.name} - ${u.email}</option>`).join('');
-      memberChips.innerHTML = j.members.map(m=>`<span class="chip" data-id="${m.id}">${m.name} <a href="#" data-act="rm">âœ•</a></span>`).join('');
+      memberChips.innerHTML = j.members.map(m=>`<span class="chip" data-id="${m.id}">${m.name} <a href="#" data-act="rm">x</a></span>`).join('');
       memberChips.querySelectorAll('a[data-act="rm"]').forEach(a => {
         a.onclick = async (ev) => {
           ev.preventDefault();
