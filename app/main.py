@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 from icalendar import Calendar, Event
 
 from .database import Base, engine, SessionLocal, run_migrations
@@ -229,13 +230,31 @@ async def list_users(request: Request, db: Session = Depends(get_db)):
 @app.get("/api/homes")
 async def api_list_homes(request: Request, db: Session = Depends(get_db)):
     user = require_user(await current_user(request, db))
-    owned = db.query(Home).filter_by(owner_id=user.id).all()
-    member_home_ids = [m.home_id for m in db.query(HomeMember).filter_by(user_id=user.id).all()]
-    members = db.query(Home).filter(Home.id.in_(member_home_ids)).all() if member_home_ids else []
-    homes = {h.id: h for h in owned}
-    for h in members:
-        homes[h.id] = h
-    return [{"id": h.id, "name": h.name, "is_owner": h.owner_id == user.id} for h in homes.values()]
+    try:
+        owned = db.query(Home).filter_by(owner_id=user.id).all()
+        member_home_ids = [m.home_id for m in db.query(HomeMember).filter_by(user_id=user.id).all()]
+        members = db.query(Home).filter(Home.id.in_(member_home_ids)).all() if member_home_ids else []
+        homes = {h.id: h for h in owned}
+        for h in members:
+            homes[h.id] = h
+        return [{"id": h.id, "name": h.name, "is_owner": h.owner_id == user.id} for h in homes.values()]
+    except OperationalError as e:
+        if "no such column" in str(e).lower():
+            # Self-heal legacy DBs at runtime
+            run_migrations(engine)
+            db.rollback()
+            try:
+                with SessionLocal() as db2:
+                    owned = db2.query(Home).filter_by(owner_id=user.id).all()
+                    member_home_ids = [m.home_id for m in db2.query(HomeMember).filter_by(user_id=user.id).all()]
+                    members = db2.query(Home).filter(Home.id.in_(member_home_ids)).all() if member_home_ids else []
+                    homes = {h.id: h for h in owned}
+                    for h in members:
+                        homes[h.id] = h
+                    return [{"id": h.id, "name": h.name, "is_owner": h.owner_id == user.id} for h in homes.values()]
+            except Exception:
+                pass
+        raise
 
 
 @app.post("/api/homes")
@@ -245,12 +264,25 @@ async def api_create_home(request: Request, db: Session = Depends(get_db)):
     name = (data.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="Name required")
-    if db.query(Home).filter_by(name=name).first():
-        raise HTTPException(status_code=409, detail="Home name already exists")
-    h = Home(name=name, owner_id=user.id)
-    db.add(h); db.commit(); db.refresh(h)
-    db.add(HomeMember(home_id=h.id, user_id=user.id)); db.commit()
-    return {"id": h.id, "name": h.name, "is_owner": True}
+    try:
+        if db.query(Home).filter_by(name=name).first():
+            raise HTTPException(status_code=409, detail="Home name already exists")
+        h = Home(name=name, owner_id=user.id)
+        db.add(h); db.commit(); db.refresh(h)
+        db.add(HomeMember(home_id=h.id, user_id=user.id)); db.commit()
+        return {"id": h.id, "name": h.name, "is_owner": True}
+    except OperationalError as e:
+        if "no such column" in str(e).lower():
+            run_migrations(engine)
+            db.rollback()
+            with SessionLocal() as db2:
+                if db2.query(Home).filter_by(name=name).first():
+                    raise HTTPException(status_code=409, detail="Home name already exists")
+                h = Home(name=name, owner_id=user.id)
+                db2.add(h); db2.commit(); db2.refresh(h)
+                db2.add(HomeMember(home_id=h.id, user_id=user.id)); db2.commit()
+                return {"id": h.id, "name": h.name, "is_owner": True}
+        raise
 
 
 @app.get("/api/homes/{home_id}")
