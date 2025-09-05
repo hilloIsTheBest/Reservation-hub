@@ -10,7 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
 from icalendar import Calendar, Event
 
-from .database import Base, engine, SessionLocal
+from .database import Base, engine, SessionLocal, run_migrations
 from .models import User, Resource, Reservation, Home, HomeMember, HomeResource, HomeReservation
 from .auth import router as auth_router
 from .utils import overlaps, parse_to_utc_naive, isoformat_z
@@ -28,6 +28,8 @@ app.mount("/static", StaticFiles(directory=static_dir()), name="static")
 templates = Jinja2Templates(directory=templates_dir())
 app.include_router(auth_router)
 
+# Migrate legacy DBs, then create any missing tables
+run_migrations(engine)
 Base.metadata.create_all(bind=engine)
 
 with SessionLocal() as db:
