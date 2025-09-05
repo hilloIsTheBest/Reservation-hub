@@ -229,6 +229,8 @@ async def list_users(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/api/homes")
 async def api_list_homes(request: Request, db: Session = Depends(get_db)):
+    # Ensure legacy DBs are migrated before querying
+    run_migrations(engine)
     user = require_user(await current_user(request, db))
     try:
         owned = db.query(Home).filter_by(owner_id=user.id).all()
@@ -259,6 +261,8 @@ async def api_list_homes(request: Request, db: Session = Depends(get_db)):
 
 @app.post("/api/homes")
 async def api_create_home(request: Request, db: Session = Depends(get_db)):
+    # Ensure legacy DBs are migrated before writing
+    run_migrations(engine)
     user = require_user(await current_user(request, db))
     data = await request.json()
     name = (data.get("name") or "").strip()
