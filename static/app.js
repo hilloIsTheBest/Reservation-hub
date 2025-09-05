@@ -13,11 +13,13 @@
 
   const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
     initialView: 'timeGridWeek',
+    timeZone: 'local',
     nowIndicator: true,
     selectable: true,
     headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
     events: function(info, success, failure) {
-      const params = new URLSearchParams({ start: info.startStr, end: info.endStr });
+      // Send UTC to backend to avoid ambiguity
+      const params = new URLSearchParams({ start: info.start.toISOString(), end: info.end.toISOString() });
       if (resSel.value) params.append('resource_id', resSel.value);
       fetch('/api/events?'+params).then(r=>r.json()).then(success).catch(failure);
     },
@@ -31,7 +33,8 @@
         const i = parseInt(idx)-1; if (isNaN(i) || i<0) return alert('Invalid');
         resource_id = (await fetch('/api/resources').then(r=>r.json()))[i].id;
       }
-      const payload = { title, resource_id, start: sel.startStr, end: sel.endStr };
+      // Send UTC to backend to avoid ambiguity
+      const payload = { title, resource_id, start: sel.start.toISOString(), end: sel.end.toISOString() };
       const resp = await fetch('/api/bookings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
       if (!resp.ok) {
         const j = await resp.json().catch(()=>({detail:'Error'}));

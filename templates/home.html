@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Family Fleet — Homes</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.css" />
+  <style>
+    :root {
+      --bg: #ffffff; --fg: #111827; --muted:#6b7280; --card:#f9fafb; --accent:#6366f1; --accent-2:#8b5cf6;
+      --border:#e5e7eb; --btn-bg:#111827; --btn-fg:#ffffff; --chip:#eef2ff;
+    }
+    .theme-dark { --bg:#0f172a; --fg:#e5e7eb; --muted:#94a3b8; --card:#111827; --accent:#22d3ee; --accent-2:#38bdf8; --border:#1f2937; --btn-bg:#e5e7eb; --btn-fg:#0f172a; --chip:#0ea5e920; }
+    .theme-hue { --bg:#0b1020; --fg:#e6e8ff; --muted:#9aa3c7; --card:#111633; --accent:#7c3aed; --accent-2:#4f46e5; --border:#1d2447; --btn-bg:#7c3aed; --btn-fg:#ffffff; --chip:#1f275840; }
+    html, body { height: 100%; }
+    body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--fg); }
+    header { display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom:1px solid var(--border); backdrop-filter: blur(6px); position: sticky; top: 0; background: color-mix(in oklab, var(--bg) 92%, transparent); z-index:10; }
+    header .brand { font-weight:700; letter-spacing:0.2px; }
+    header .actions { display:flex; gap:8px; align-items:center; }
+    button, select, input { border-radius:10px; border:1px solid var(--border); background: var(--card); color: var(--fg); padding:8px 10px; }
+    .btn-primary { background: var(--btn-bg); color: var(--btn-fg); border-color: transparent; }
+    .layout { display:grid; grid-template-columns: 280px 1fr; gap: 12px; padding: 12px; }
+    .panel { background: var(--card); border:1px solid var(--border); border-radius: 14px; padding: 12px; }
+    .section-title { font-weight:600; margin: 6px 0 10px; }
+    .homes-list { display:flex; flex-direction:column; gap:8px; }
+    .home-item { display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px solid var(--border); border-radius:10px; background: var(--bg); cursor:pointer; }
+    .home-item.active { outline:2px solid var(--accent); }
+    .chips { display:flex; gap:6px; flex-wrap:wrap; }
+    .chip { background: var(--chip); padding: 2px 8px; border-radius:999px; font-size: 12px; border:1px solid var(--border); }
+    #calendar { max-width: 1100px; margin: 10px auto 30px; padding: 0 8px; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+    a { color: var(--accent-2); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Family Fleet</div>
+    <div class="actions">
+      <a href="/og" title="Open original version">Old Version</a>
+      {% if offline %}
+      <button id="syncBtn" class="btn-primary" title="Sync from a server">Sync</button>
+      {% endif %}
+      <select id="themeSel" title="Theme">
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+        <option value="hue">Purple/Blue</option>
+      </select>
+      {% if user %}
+        <span>Hi, {{ user.name }}</span>
+        <a href="/logout"><button>Logout</button></a>
+      {% else %}
+        <a href="/login"><button class="btn-primary">Login</button></a>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="panel">
+      <div class="section-title">Homes</div>
+      <div class="row" style="margin-bottom:8px;">
+        <input id="newHomeName" placeholder="Create new home" style="flex:1;" />
+        <button id="createHome" class="btn-primary">Create</button>
+      </div>
+      <div id="homes" class="homes-list"></div>
+    </div>
+
+    <div>
+      <div class="panel" style="margin-bottom:10px;">
+        <div class="row">
+          <label>Home:</label>
+          <span id="activeHomeName" class="chip">None</span>
+          <label>Resource:</label>
+          <select id="homeResourceFilter"></select>
+          <span id="homeIcs" class="chip" title="ICS URL will follow selected home"></span>
+        </div>
+        <div id="ownerPanel" style="margin-top:10px; display:none;">
+          <div class="section-title">Manage Members</div>
+          <div class="row">
+            <select id="userPicker"></select>
+            <button id="addMember">Invite</button>
+          </div>
+          <div id="memberChips" class="chips" style="margin-top:8px;"></div>
+          <hr style="border:none;border-top:1px solid var(--border); margin:12px 0;"/>
+          <div class="section-title">Resources</div>
+          <div class="row">
+            <input id="newResName2" placeholder="e.g., Car 3" />
+            <input id="newResColor2" type="color" value="#6c5ce7" />
+            <button id="addRes2">Add</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="calendar"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js"></script>
+  <script>
+    const isAuthed = {{ 'true' if user else 'false' }};
+    const isAdmin  = {{ 'true' if user and user.is_admin else 'false' }};
+    const isOffline = {{ 'true' if offline else 'false' }};
+  </script>
+  <script src="/static/new_app.js"></script>
+</body>
+</html>

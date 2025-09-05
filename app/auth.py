@@ -14,7 +14,7 @@ OIDC_ISSUER = os.getenv("OIDC_ISSUER", "")
 OIDC_CLIENT_ID = os.getenv("OIDC_CLIENT_ID", "")
 OIDC_CLIENT_SECRET = os.getenv("OIDC_CLIENT_SECRET", "")
 OIDC_REDIRECT_PATH = os.getenv("OIDC_REDIRECT_PATH", "/auth/callback")
-BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+BASE_URL = os.getenv("BASE_URL", "http://localhost:9629")
 OIDC_SCOPES = os.getenv("OIDC_SCOPES", "openid profile email")
 
 if not all([OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET]):
