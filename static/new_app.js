@@ -13,6 +13,10 @@
   const icsEl = $('#homeIcs');
   const themeSel = $('#themeSel');
   const syncBtn = $('#syncBtn');
+  const addResBtn = document.getElementById('addRes2');
+  const newResName2 = document.getElementById('newResName2');
+  const newResColor2 = document.getElementById('newResColor2');
+  const deleteHomeBtn = document.getElementById('deleteHome');
 
   // Theme handling
   const themeKey = 'ff_theme';
@@ -94,6 +98,9 @@
     ownerPanel.style.display = j.is_owner ? '' : 'none';
     if (j.is_owner) {
       await loadUsers();
+      // Normalize member UI rendering
+      userPicker.innerHTML = state.users.map(u=>`<option value="${u.id}">${u.name} — ${u.email}</option>`).join('');
+      memberChips.innerHTML = (j.members || []).map(m=>`<span class="chip" data-id="${m.id}">${m.name} <a href="#" data-act="rm" title="Remove">✕</a></span>`).join('');
       userPicker.innerHTML = state.users.map(u=>`<option value="${u.id}">${u.name} — ${u.email}</option>`).join('');
       memberChips.innerHTML = j.members.map(m=>`<span class="chip" data-id="${m.id}">${m.name} <a href="#" data-act="rm">✕</a></span>`).join('');
       memberChips.querySelectorAll('a[data-act="rm"]').forEach(a => {
@@ -122,6 +129,47 @@
     }
     await loadHomeDetails();
   };
+
+  // Add resource (owner panel)
+  if (addResBtn) {
+    addResBtn.onclick = async () => {
+      if (!state.activeHomeId) return alert('Select a home first');
+      const name = (newResName2.value || '').trim();
+      const color = newResColor2.value || '#3788d8';
+      if (!name) return alert('Resource name required');
+      const resp = await fetch(`/api/homes/${state.activeHomeId}/resources`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ name, color })
+      });
+      if (!resp.ok) {
+        const j = await resp.json().catch(()=>({detail:'Error'}));
+        return alert('Failed: ' + (j.detail || resp.status));
+      }
+      newResName2.value = '';
+      await loadHomeResources();
+      if (state.calendar) state.calendar.refetchEvents();
+    };
+  }
+
+  // Delete home (owner only)
+  if (deleteHomeBtn) {
+    deleteHomeBtn.onclick = async () => {
+      if (!state.activeHomeId) return;
+      if (!confirm('Delete this home and all its data? This cannot be undone.')) return;
+      const resp = await fetch(`/api/homes/${state.activeHomeId}`, { method: 'DELETE' });
+      if (!resp.ok) {
+        const j = await resp.json().catch(()=>({detail:'Error'}));
+        return alert('Failed: ' + (j.detail || resp.status));
+      }
+      await loadHomes();
+      state.activeHomeId = null;
+      activeHomeName.textContent = 'None';
+      resSel.innerHTML = '';
+      if (state.homes.length) {
+        setActiveHome(state.homes[0].id, state.homes[0].name, state.homes[0].is_owner);
+      }
+    };
+  }
 
   function initCalendar() {
     const el = document.getElementById('calendar');

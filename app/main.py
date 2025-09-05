@@ -311,6 +311,22 @@ async def api_get_home(home_id: int, request: Request, db: Session = Depends(get
     }
 
 
+@app.delete("/api/homes/{home_id}")
+async def api_delete_home(home_id: int, request: Request, db: Session = Depends(get_db)):
+    """Delete a home and all nested data (owner only)."""
+    user = require_user(await current_user(request, db))
+    require_home_owner(db, user, home_id)
+    # Delete child rows explicitly for safety
+    db.query(HomeReservation).filter_by(home_id=home_id).delete()
+    db.query(HomeResource).filter_by(home_id=home_id).delete()
+    db.query(HomeMember).filter_by(home_id=home_id).delete()
+    h = db.query(Home).get(home_id)
+    if h:
+        db.delete(h)
+    db.commit()
+    return {"ok": True}
+
+
 @app.post("/api/homes/{home_id}/members")
 async def api_add_member(home_id: int, request: Request, db: Session = Depends(get_db)):
     user = require_user(await current_user(request, db))
